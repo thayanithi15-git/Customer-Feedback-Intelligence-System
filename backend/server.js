@@ -29,10 +29,29 @@ let uploadJob = {
   error: null
 };
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/feedback_intelligence')
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// Connect to MongoDB locally for development
+if (process.env.NODE_ENV !== 'production') {
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/feedback_intelligence')
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
+}
+
+// Middleware to ensure MongoDB connection is active (critical for Vercel serverless functions)
+const ensureDb = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database state not ready. Establishing connection...');
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/feedback_intelligence');
+      console.log('Database connected successfully.');
+    }
+    next();
+  } catch (err) {
+    console.error('Database connection error in middleware:', err);
+    res.status(500).json({ error: 'Database connection failed: ' + err.message });
+  }
+};
+
+app.use('/api', ensureDb);
 
 // Multer config for file upload
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
@@ -89,14 +108,15 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     error: null
   };
 
-  // Start processing in background so request does not time out
-  processCSVInBackground(csvBuffer).catch(err => {
-    console.error('Error in background processing:', err);
+  try {
+    await processCSVInBackground(csvBuffer);
+    res.json({ message: 'File processing completed.', status: 'completed' });
+  } catch (err) {
+    console.error('Error in processing:', err);
     uploadJob.status = 'failed';
     uploadJob.error = err.message;
-  });
-
-  res.json({ message: 'File processing started.', status: 'processing' });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 async function processCSVInBackground(buffer) {
@@ -368,6 +388,10 @@ app.get('/api/export', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+export default app;

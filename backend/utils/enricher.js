@@ -242,6 +242,8 @@ export async function enrichFeedbackBatch(cleanedRecords, config, onProgress) {
   }
 
 
+  let useLocalFallback = false;
+
   for (let i = 0; i < total; i += batchSize) {
     const batch = cleanedRecords.slice(i, i + batchSize).map((rec, idx) => ({
       index: i + idx,
@@ -252,33 +254,70 @@ export async function enrichFeedbackBatch(cleanedRecords, config, onProgress) {
     }));
 
     let batchResults = [];
-    let retries = 3;
 
-    while (retries > 0) {
-      try {
-        if (provider === 'gemini') {
-          batchResults = await enrichWithGemini(batch, apiKey);
-        } else {
-          throw new Error(`Unsupported provider: ${provider}`);
-        }
-        break;
-      } catch (err) {
-        retries--;
-        console.warn(`Error processing batch starting at ${i}. Retries left: ${retries}. Error: ${err.message}`);
-        if (retries === 0) {
-          // Fallback if AI fails completely for this batch
-          batchResults = batch.map(b => ({
-            index: b.index,
-            sentiment: b.rawRating && parseInt(b.rawRating) >= 4 ? 'positive' : (b.rawRating && parseInt(b.rawRating) <= 2 ? 'negative' : 'neutral'),
-            category: 'Other',
-            summary: b.text.substring(0, 60),
-            language: 'en',
-            translatedText: b.text,
-            isSarcastic: false
-          }));
-        } else {
-          // Wait before retry
-          await new Promise(res => setTimeout(res, 2000));
+    if (useLocalFallback) {
+      // Direct local fallback to avoid slow retries and API errors
+      batchResults = batch.map(b => {
+        const localRes = localEnrichRecord(b);
+        return {
+          index: b.index,
+          sentiment: localRes.sentiment,
+          category: localRes.category,
+          summary: localRes.summary,
+          language: localRes.language,
+          translatedText: localRes.translatedText,
+          isSarcastic: localRes.isSarcastic
+        };
+      });
+    } else {
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          if (provider === 'gemini') {
+            batchResults = await enrichWithGemini(batch, apiKey);
+          } else {
+            throw new Error(`Unsupported provider: ${provider}`);
+          }
+          break;
+        } catch (err) {
+          retries--;
+          console.warn(`Error processing batch starting at ${i}. Retries left: ${retries}. Error: ${err.message}`);
+          
+          // Check for permanent errors (like 404 Not Found, 403 Forbidden, 400 Bad Request, API key invalid, etc.)
+          const errorText = (err.message || '').toLowerCase();
+          if (
+            errorText.includes('404') || 
+            errorText.includes('not found') || 
+            errorText.includes('403') || 
+            errorText.includes('api_key_invalid') || 
+            errorText.includes('key not valid') ||
+            errorText.includes('unauthorized') ||
+            errorText.includes('bad request') ||
+            errorText.includes('400')
+          ) {
+            console.warn('Permanent Gemini API error detected (e.g. model not found, invalid key, or forbidden). Switching to local fallback for this and all remaining batches.');
+            useLocalFallback = true;
+            retries = 0; // Stop retrying this batch
+          }
+
+          if (retries === 0) {
+            // Fallback if AI fails completely for this batch - use local rule-based classifier
+            batchResults = batch.map(b => {
+              const localRes = localEnrichRecord(b);
+              return {
+                index: b.index,
+                sentiment: localRes.sentiment,
+                category: localRes.category,
+                summary: localRes.summary,
+                language: localRes.language,
+                translatedText: localRes.translatedText,
+                isSarcastic: localRes.isSarcastic
+              };
+            });
+          } else {
+            // Wait before retry
+            await new Promise(res => setTimeout(res, 2000));
+          }
         }
       }
     }

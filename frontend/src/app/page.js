@@ -8,7 +8,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/dashboard')
+    fetch('http://localhost:5050/api/dashboard')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch dashboard data. Make sure backend is running and data is uploaded.');
         return res.json();
@@ -143,8 +143,8 @@ export default function Dashboard() {
 
   return (
     <div>
-      <header style={{ marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>Feedback Dashboard</h1>
+      <header style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.6rem', marginBottom: '4px' }}>Feedback Dashboard</h1>
         <p style={{ color: 'hsl(var(--text-secondary))' }}>
           Real-time customer sentiment analysis, categories distribution, and resolution trends.
         </p>

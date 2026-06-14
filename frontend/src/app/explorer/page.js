@@ -30,7 +30,7 @@ export default function Explorer() {
       params.append('isSarcastic', isSarcastic);
     }
 
-    fetch(`http://localhost:5000/api/feedback?${params.toString()}`)
+    fetch(`http://localhost:5050/api/feedback?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         setFeedbacks(data.data);
@@ -55,14 +55,14 @@ export default function Explorer() {
   };
 
   const downloadCSV = () => {
-    window.open('http://localhost:5000/api/export');
+    window.open('http://localhost:5050/api/export');
   };
 
   return (
     <div>
-      <header style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>Feedback Explorer</h1>
+          <h1 style={{ fontSize: '1.6rem', marginBottom: '4px' }}>Feedback Explorer</h1>
           <p style={{ color: 'hsl(var(--text-secondary))' }}>
             Browse, search, and audit cleaned and enriched customer feedback entries.
           </p>

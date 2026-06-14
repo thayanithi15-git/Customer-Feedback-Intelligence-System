@@ -20,7 +20,7 @@ export default function UploadPage() {
     let interval;
     if (status.status === 'processing' || status.status === 'enriching') {
       interval = setInterval(() => {
-        fetch('http://localhost:5000/api/status')
+        fetch('http://localhost:5050/api/status')
           .then(res => res.json())
           .then(data => {
             setStatus(data);
@@ -33,7 +33,7 @@ export default function UploadPage() {
 
   // Initial fetch status
   useEffect(() => {
-    fetch('http://localhost:5000/api/status')
+    fetch('http://localhost:5050/api/status')
       .then(res => res.json())
       .then(data => {
         setStatus(data);
@@ -67,7 +67,7 @@ export default function UploadPage() {
   };
 
   const handleReset = () => {
-    fetch('http://localhost:5000/api/status/reset', { method: 'POST' })
+    fetch('http://localhost:5050/api/status/reset', { method: 'POST' })
       .then(res => res.json())
       .then(data => {
         setStatus(data);
@@ -88,7 +88,7 @@ export default function UploadPage() {
 
     setStatus(prev => ({ ...prev, status: 'processing', progress: 0, error: null }));
 
-    fetch('http://localhost:5000/api/upload', {
+    fetch('http://localhost:5050/api/upload', {
       method: 'POST',
       body: formData
     })
@@ -106,8 +106,8 @@ export default function UploadPage() {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '8px' }}>Pipeline Data Ingestion</h1>
+      <header style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.6rem', marginBottom: '4px' }}>Pipeline Data Ingestion</h1>
         <p style={{ color: 'hsl(var(--text-secondary))' }}>
           Upload your raw messy CSV feedback file. The pipeline will clean, standardize, and run batch AI enrichment.
         </p>
