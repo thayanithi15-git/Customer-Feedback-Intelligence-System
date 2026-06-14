@@ -131,17 +131,14 @@ async function processCSVInBackground(buffer) {
 
     const cleanedText = cleanFeedbackText(rawFeedback);
 
-    // Filter genuine duplicates
-    // Standardize text comparison by removing spaces and lowercase
-    const normalizedTextForDup = cleanedText.toLowerCase().replace(/\s+/g, '');
-    
-    if (seenIds.has(id) || seenTexts.has(normalizedTextForDup)) {
+    // Filter genuine duplicates based on exact raw text or ID
+    if (seenIds.has(id) || seenTexts.has(rawFeedback)) {
       uploadJob.duplicatesRemoved++;
       continue;
     }
 
     if (id) seenIds.add(id);
-    if (normalizedTextForDup) seenTexts.add(normalizedTextForDup);
+    if (rawFeedback) seenTexts.add(rawFeedback);
 
     // Save cleaned representation
     cleanedRows.push({
@@ -163,11 +160,9 @@ async function processCSVInBackground(buffer) {
 
   console.log(`Cleaning step done. Cleaned rows: ${cleanedRows.length}. Duplicates removed: ${uploadJob.duplicatesRemoved}. Meaningless removed: ${uploadJob.meaninglessRemoved}`);
   
-  // Step 2: AI Enrichment (Gemini)
+  // Step 2: AI Enrichment (Gemini or Local fallback)
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not defined in the backend environment variables.');
-  }
+
 
   // Clear existing records before saving new ones
   await Feedback.deleteMany({});
